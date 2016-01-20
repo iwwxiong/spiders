@@ -26,7 +26,7 @@ class IyibanCrawl(object):
     易班大学爬虫
     爬取课程信息（名称，机构，代码，报名人数及点赞人数）
     """
-    def __init__(self, maxtasks=100):
+    def __init__(self, maxtasks=20):
         self.csvfile = 'c:\\iyiban\\iyiban.csv'
         self.path = 'c:\\iyiban'
         self.host = 'http://www.iyiban.cn'
@@ -37,6 +37,7 @@ class IyibanCrawl(object):
     def run(self, page=1):
         r = yield from aiohttp.get(''.join([self.host, '/courses/page/', str(page)]))
         content = yield from r.text()
+        yield from r.release()
         yield from self.sem.acquire()
         t1 = asyncio.Task(self.crawl(content))
         t1.add_done_callback(lambda x: self.sem.release())
@@ -68,6 +69,7 @@ class IyibanCrawl(object):
         """
         r = yield from aiohttp.get(u)
         content = yield from r.text()
+        yield from r.release()
 
         j, e, d = JED.findall(content)[0]
         n, z, c = (
@@ -78,6 +80,7 @@ class IyibanCrawl(object):
 
         print('Course name: %s' % n)
         yield from self.sem.acquire()
+        print(self.sem)
         task = asyncio.Task(self.write_csv(n, j, d, e, z, c))
         task.add_done_callback(lambda x: self.sem.release())
 
@@ -105,7 +108,7 @@ class IyibanCrawl(object):
         with open(f, 'wb') as fd:
             # fd.write(yield from r.read()) 会报语法错误，只能使用await。WTF
             fd.write(await r.read())
-
+        self.sem.release()
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
